@@ -38,6 +38,8 @@ usage() {
   echo ""
   echo "Configuration (edit script or set env): HAILO_HOST, HAILO_PASSWORD, HAILO_DEVICE_TARGET_DIR."
   echo "Example: HAILO_HOST=root@192.168.1.100 HAILO_PASSWORD=secret $0 start"
+  echo ""
+  echo "If stop fails with 'SSH error': run '$0 status' to test connectivity; check HAILO_HOST and HAILO_PASSWORD."
   exit 1
 }
 
@@ -63,8 +65,10 @@ cmd_start() {
 
 cmd_stop() {
   echo "Stopping blink-camera on Hailo device ($HAILO_HOST)..."
-  run_ssh "pkill -f $BLINK_PROCESS_PATTERN || true" || echo "Warning: Failed to send stop command (SSH error)." >&2
-  echo "Stop command executed. Verifying..."
+  # Run pkill. Some Hailo devices close the SSH connection when pkill runs, so SSH may return 255;
+  # we still treat the command as sent and verify with a separate connection.
+  run_ssh "pkill -f $BLINK_PROCESS_PATTERN" 2>/dev/null || true
+  echo "Stop command sent. Verifying..."
   sleep 2
   if run_ssh "ps -ef | grep -q '[r]un_blink_detector.py'" 2>/dev/null; then
     echo "Warning: Process still running." >&2
